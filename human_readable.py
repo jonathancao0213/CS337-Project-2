@@ -9,7 +9,7 @@ import spacy
 from spacy import displacy
 from spacy.matcher import Matcher
 from spacy.tokens import Span
-nlp = spacy.load('en_core_web_md')
+nlp = spacy.load('en_core_web_sm')
 from string import punctuation
 from collections import defaultdict
 import itertools
@@ -45,7 +45,7 @@ def parse_ingredients(url):
         print(i)
         if 'to taste' not in i:
             # before we look at POS, remove everything after the comma and put it in prep
-            split_string = i.split(", ", 1)
+            split_string = i.lower().split(", ", 1)
             root_phrase = split_string[0]
             if len(split_string) > 1:
                 other_piece = split_string[1]
@@ -93,18 +93,98 @@ def parse_ingredients(url):
         #displacy.render(doc, style="dep") # change to serve when we go to python
 
 
-    
+    print(ingredients_parsed)
     return ingredients_parsed
 
+def to_vegetarian (ingredients):
+    vegetarian_dict = {'beef':'beyond beef', 'chicken':'tofu', 'fish':'Gardein fishless filet', 'lamb':'tofu', 'duck':'tofu', 'pork':'tofu',
+                   'turkey':'tofu', 'meat':'tofu', 'veal':'tempeh', 'ham':'tofu', 'liver':'black beans',
+                   'goose':'tofu', 'salami':'jackfruit', 'bologna':'jackfruit', 'salmon':'marinated carrots',
+                   'mahi mahi':'Gardein fishless filet','tilapia':'Gardein fishless filet',
+                   'yellowtail':'Gardein fishless filet', 'trout':'Gardein fishless filet',
+                   'cod':'Gardein fishless filet', 'venison': 'tofu',
+                   'lobster':'Gardein fishless filet', 'shrimp':'Gardein fishless filet', 'crab':'Gardein fishless filet',
+                   'eel':'edamame', 'meatball':'chickpea',
+                   'sausage':'Beyond sausage', 'bratwurst':'jackfruit', 'hotdog':'Beyond sausage',
+                  'hamburger':'impossible burger', 'kielbasa':'chickpeas', 'bacon':'Eggplant', 'chuck':'Beyond beef'}
+    for i in ingredients:
+        curr_ingredient = i[2]
+        if curr_ingredient in vegetarian_dict.keys():
+            subst = vegetarian_dict[curr_ingredient]
+            subst = subst.strip()
+            i[2] = subst
+        curr_descr = i[3]
+        if curr_descr in vegetarian_dict.keys():
+            subst = vegetarian_dict[curr_descr]
+            subst = subst.strip()
+            i[3] = subst
+    print(ingredients)
+    return ingredients
+
+def to_healthy (ingredients):
+    healthy_dict = {
+    "butter":"almond butter",
+    "margarine":"almond butter",
+    "sugar":"organic coconut sugar",
+    "salt":"Morton salt substitute",
+    "frosting":"greek yogurt frosting",
+    "chocolate":"carob",
+    "cheese":"ricotta",
+    "bread":"wheat bread",
+    "oil":"oil",
+    "cream":"soy milk and olive oil",
+    "juice":"coconut water",
+    "bacon":"turkey bacon",
+    "sausage":"turkey sausage",
+    "soda":"sparkling water",
+    "mayonnaise":"avocado oil",
+    "ranch":"hummus",
+    "dressing":"balsamic vinaigrette",
+    "cereal":"granola",
+    "caramel":"coconut milk caramel",
+    "flour":"almond flour",
+    "syrup":"honey",
+    "eggs":"egg whites",
+    "egg":"egg white",
+    "pasta":"zucchini noodles",
+    "rice":"rice"}
+    for i in ingredients:
+        curr_i = i[2]
+        if curr_i in healthy_dict.keys():
+            subst = healthy_dict[curr_i]
+            subst = subst.strip()
+            if curr_i == "cream":
+                if "whipped" in i[3]:
+                    subst = "low-fat cream cheese"
+                    i[3] = i[3].replace("whipped", "")
+                elif "sour" in i[3]:
+                    subst = "yogurt"
+                    i[3] = i[3].replace("sour", "")
+                elif "ice" in curr_i[3]:
+                    subst = "Greek yogurt"
+                    i[3] = i[3].replace("ice", "")
+            elif curr_i == "bread" and "white" in i[3]:
+                i[3] = i[3].replace("white", "")
+            elif curr_i == "butter" and "peanut" in i[3]:
+                i[3] = i[3].replace("peanut", "")
+            elif curr_i == "oil" and "vegetable" in i[3]:
+                subst = "canola oil"
+                i[3] = i[3].replace("vegetable", "")
+            elif curr_i == "rice" and "white" in i[3]:
+                subst = "cauliflower rice"
+                i[3] = i[3].replace("white", "")
+                
+            i[2] = subst
+
 def find_tool(sentence,filter_list):
-    in_list = ['in','into','on','to']
+    in_list = ['in','into','on','to','with','onto']
     tools =[]
     not_tools = []
     sent = nlp(sentence.lower())
     for chunk in sent.noun_chunks:
 #         and chunk.root.head.pos_ != 'VERB' and not chunk.root.is_sent_start
         if chunk.root.text not in filter_list and chunk.root.head.text in in_list:
-            tools.append(chunk.root.text)
+            tools.append(chunk.text)
 #     for token in sent:
 #         if token.text not in too and token.pos_ == 'NOUN':
 #             not_tools.append(token.text)
@@ -114,7 +194,8 @@ def get_Tools(url):
     json_ld = get_ld_json(url)
     ing = itertools.chain.from_iterable(parse_ingredients(url))
     ing = list(dict.fromkeys(ing))
-    filter_list = ['mixture','ingredients']
+    filter_list = ['mixture','ingredients','degrees',
+                    'temperature','f', 'fahrenheit', 'c', 'celsius']
     name = json_ld[1]['name']
     for ingr in ing:
         for word in ingr.split():
@@ -139,8 +220,10 @@ def get_Tools(url):
         t,nt = find_tool(str(sentence),filter_list)
         for each in t:
             tools.append(each)
+    tools = list(dict.fromkeys(tools))
     print(tools)
 
-url = "https://www.allrecipes.com/recipe/232542"
+
+url = "https://www.allrecipes.com/recipe/22180"
 get_Tools(url)
     
